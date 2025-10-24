@@ -1,32 +1,24 @@
 // main.ts
-
-import { App, Plugin, Modal } from "obsidian";
+import { App, Plugin, Modal, setIcon } from "obsidian";
 
 // ======================================================
 // 1. 插件主类 (Plugin Entry Point)
 // ======================================================
 export default class ImageToolkitPlugin extends Plugin {
 	async onload() {
-		// 注册一个全局的 DOM 点击事件监听器
-		// 当用户点击文档中的任何元素时，此函数都会触发
-		// 我们使用捕获阶段(capture: true)以确保能优先处理点击事件
 		this.registerDomEvent(
 			document,
 			"click",
 			(evt: MouseEvent) => {
-				// 获取被点击的 HTML 元素
 				const target = evt.target as HTMLElement;
-
-				// 检查被点击的元素是否是图片 (<img> 标签)
-				if (target.tagName === "IMG") {
-					// 阻止 Obsidian 默认的图片点击行为
+				if (
+					target.tagName === "IMG" &&
+					target.closest(".workspace-leaf-content")
+				) {
 					evt.preventDefault();
 					evt.stopPropagation();
-
-					// 获取图片的 URL (src)
 					const src = target.getAttribute("src");
 					if (src) {
-						// 如果 src 有效，则创建并打开我们的自定义预览窗口
 						new ImagePreviewModal(this.app, src).open();
 					}
 				}
@@ -34,149 +26,231 @@ export default class ImageToolkitPlugin extends Plugin {
 			{ capture: true }
 		);
 	}
-
-	onunload() {
-		// 插件卸载时，Obsidian 会自动清理 registerDomEvent 注册的事件，
-		// 所以这里通常不需要写额外的清理代码。
-	}
 }
 
 // ======================================================
 // 2. 自定义图片预览模态框 (The Modal)
 // ======================================================
 class ImagePreviewModal extends Modal {
-	// --- 属性定义 ---
+	// --- 元素 & 状态 ---
 	private imgSrc: string;
-	private imgElement: HTMLImageElement; // 用于存储图片DOM元素，方便重复操作
+	private container: HTMLDivElement;
+	private imgElement: HTMLImageElement;
+	private sliderElement: HTMLInputElement; // 新增：用于存储滑块DOM元素
 
-	// --- 图片状态变量 ---
-	private currentRotation = 0; // 当前旋转角度
-	private currentScale = 1; // 当前缩放比例
-	private scaleX = 1; // 水平翻转状态 (1: 正常, -1: 翻转)
-	private scaleY = 1; // 垂直翻转状态 (1: 正常, -1: 翻转)
-	private isGrayscale = false; // 是否为灰度模式
+	// --- 图片变换状态 ---
+	private currentRotation = 0;
+	private currentScale = 1;
+	private scaleX = 1;
+	private scaleY = 1;
+	private isGrayscale = false;
+
+	// --- 手势交互状态 ---
+	private isInteracting = false;
+	private initialDistance = 0;
+	private initialAngle = 0;
+	private pinchStartScale = 1;
+	private pinchStartRotation = 0;
 
 	constructor(app: App, imgSrc: string) {
 		super(app);
 		this.imgSrc = imgSrc;
+		this.handleTouchStart = this.handleTouchStart.bind(this);
+		this.handleTouchMove = this.handleTouchMove.bind(this);
+		this.handleTouchEnd = this.handleTouchEnd.bind(this);
 	}
 
-	// --- Modal 打开时执行的核心逻辑 ---
 	onOpen() {
 		const { contentEl } = this;
-		contentEl.empty(); // 清空 Modal 的默认内容
-		contentEl.addClass("image-toolkit-modal-content"); // 添加自定义CSS类
+		contentEl.empty();
+		contentEl.addClass("image-toolkit-modal-content");
 
-		// 创建一个容器用于包裹图片，方便实现居中和溢出隐藏
-		const container = contentEl.createDiv({ cls: "image-container" });
-		this.imgElement = container.createEl("img", {
+		this.container = contentEl.createDiv({ cls: "image-container" });
+		this.imgElement = this.container.createEl("img", {
 			attr: { src: this.imgSrc },
 		});
 		this.imgElement.addClass("preview-image");
 
-		// 创建工具栏
-		const toolbar = contentEl.createDiv({ cls: "image-toolkit-toolbar" });
-
-		// --- 创建所有操作按钮 ---
-		// 放大
-		this.createButton(toolbar, "➕", "Zoom In", () => {
-			this.currentScale += 0.1;
-			this.applyTransformations();
-		});
-
-		// 缩小
-		this.createButton(toolbar, "➖", "Zoom Out", () => {
-			// 防止缩得太小
-			this.currentScale = Math.max(0.1, this.currentScale - 0.1);
-			this.applyTransformations();
-		});
-
-		// 向右旋转
-		this.createButton(toolbar, "⟳", "Rotate Right", () => {
-			this.currentRotation += 90;
-			this.applyTransformations();
-		});
-
-		// 向左旋转
-		this.createButton(toolbar, "⟲", "Rotate Left", () => {
-			this.currentRotation -= 90;
-			this.applyTransformations();
-		});
-
-		// 水平翻转
-		this.createButton(toolbar, "↔", "Flip Horizontal", () => {
-			this.scaleX *= -1;
-			this.applyTransformations();
-		});
-
-		// 垂直翻转
-		this.createButton(toolbar, "↕", "Flip Vertical", () => {
-			this.scaleY *= -1;
-			this.applyTransformations();
-		});
-
-		// 黑白/彩色切换
-		this.createButton(toolbar, "B/W", "Toggle Grayscale", () => {
-			this.isGrayscale = !this.isGrayscale;
-			this.applyTransformations();
-		});
-
-		// 重置所有变换
-		this.createButton(toolbar, "Reset", "Reset All", () => {
-			this.currentRotation = 0;
-			this.currentScale = 1;
-			this.scaleX = 1;
-			this.scaleY = 1;
-			this.isGrayscale = false;
-			this.applyTransformations();
-		});
+		this.createControls(contentEl); // 创建所有控件
+		this.addEventListeners();
 	}
 
-	// --- Modal 关闭时执行的逻辑 ---
 	onClose() {
+		this.removeEventListeners();
 		this.contentEl.empty();
 	}
 
-	// --- 辅助方法 ---
+	// --- UI 创建 ---
+	private createControls(container: HTMLElement) {
+		// 创建滑块
+		const sliderContainer = container.createDiv({
+			cls: "rotation-slider-container",
+		});
+		this.sliderElement = sliderContainer.createEl("input", {
+			type: "range",
+			cls: "rotation-slider",
+		});
+		this.sliderElement.min = "0";
+		this.sliderElement.max = "360";
+		this.sliderElement.value = "0";
+		// 添加 'input' 事件监听器，实现拖动时实时更新
+		this.sliderElement.addEventListener("input", (e) => {
+			const target = e.target as HTMLInputElement;
+			this.currentRotation = parseInt(target.value, 10);
+			this.applyTransformations();
+		});
 
-	/**
-	 * 创建一个按钮并添加到容器中
-	 * @param container - 按钮要添加到的父元素
-	 * @param text - 按钮上显示的文本或图标
-	 * @param tooltip - 鼠标悬停时显示的提示
-	 * @param onClick - 点击按钮时执行的回调函数
-	 */
-	private createButton(
+		// 创建按钮工具栏
+		const toolbar = container.createDiv({ cls: "image-toolkit-toolbar" });
+		this.createIconButton(toolbar, "zoom-in", "Zoom In", () => {
+			this.currentScale += 0.1;
+			this.applyTransformations();
+		});
+		this.createIconButton(toolbar, "zoom-out", "Zoom Out", () => {
+			this.currentScale = Math.max(0.1, this.currentScale - 0.1);
+			this.applyTransformations();
+		});
+		// **修改：旋转按钮恢复为45度**
+		this.createIconButton(toolbar, "rotate-cw", "Rotate Right 45°", () => {
+			this.currentRotation += 45;
+			this.applyTransformations();
+		});
+		this.createIconButton(toolbar, "rotate-ccw", "Rotate Left 45°", () => {
+			this.currentRotation -= 45;
+			this.applyTransformations();
+		});
+		this.createIconButton(
+			toolbar,
+			"flip-horizontal",
+			"Flip Horizontal",
+			() => {
+				this.scaleX *= -1;
+				this.applyTransformations();
+			}
+		);
+		this.createIconButton(toolbar, "flip-vertical", "Flip Vertical", () => {
+			this.scaleY *= -1;
+			this.applyTransformations();
+		});
+		this.createIconButton(toolbar, "contrast", "Toggle Grayscale", () => {
+			this.isGrayscale = !this.isGrayscale;
+			this.applyTransformations();
+		});
+		this.createIconButton(toolbar, "refresh-cw", "Reset", () =>
+			this.resetTransformations()
+		);
+	}
+
+	// --- 事件处理 ---
+	private addEventListeners() {
+		this.container.addEventListener("touchstart", this.handleTouchStart, {
+			passive: false,
+		});
+		this.container.addEventListener("touchmove", this.handleTouchMove, {
+			passive: false,
+		});
+		this.container.addEventListener("touchend", this.handleTouchEnd);
+	}
+
+	private removeEventListeners() {
+		this.container.removeEventListener("touchstart", this.handleTouchStart);
+		this.container.removeEventListener("touchmove", this.handleTouchMove);
+		this.container.removeEventListener("touchend", this.handleTouchEnd);
+	}
+
+	private handleTouchStart(e: TouchEvent) {
+		if (e.touches.length === 2) {
+			e.preventDefault();
+			this.isInteracting = true;
+			this.initialDistance = this.getDistance(e.touches);
+			this.initialAngle = this.getAngle(e.touches);
+			this.pinchStartScale = this.currentScale;
+			this.pinchStartRotation = this.currentRotation;
+		}
+	}
+
+	private handleTouchMove(e: TouchEvent) {
+		if (this.isInteracting && e.touches.length === 2) {
+			e.preventDefault();
+			// --- 缩放逻辑 ---
+			const currentDistance = this.getDistance(e.touches);
+			this.currentScale =
+				this.pinchStartScale * (currentDistance / this.initialDistance);
+
+			// --- 旋转逻辑 ---
+			const currentAngle = this.getAngle(e.touches);
+			const angleDiff = currentAngle - this.initialAngle;
+			this.currentRotation = this.pinchStartRotation + angleDiff;
+
+			this.applyTransformations();
+		}
+	}
+
+	private handleTouchEnd(e: TouchEvent) {
+		if (e.touches.length < 2) {
+			this.isInteracting = false;
+		}
+	}
+
+	// --- 几何计算辅助函数 ---
+	private getDistance(touches: TouchList): number {
+		const [touch1, touch2] = [touches[0], touches[1]];
+		return Math.sqrt(
+			Math.pow(touch1.pageX - touch2.pageX, 2) +
+				Math.pow(touch1.pageY - touch2.pageY, 2)
+		);
+	}
+
+	private getAngle(touches: TouchList): number {
+		const [touch1, touch2] = [touches[0], touches[1]];
+		const angleRad = Math.atan2(
+			touch2.pageY - touch1.pageY,
+			touch2.pageX - touch1.pageX
+		);
+		return angleRad * (180 / Math.PI); // 转换为角度
+	}
+
+	// --- 变换 & 辅助方法 ---
+	private createIconButton(
 		container: HTMLElement,
-		text: string,
+		icon: string,
 		tooltip: string,
 		onClick: () => void
 	) {
-		const button = container.createEl("button", { text });
+		const button = container.createEl("button");
+		setIcon(button, icon); // 使用 Obsidian 的 setIcon 函数
 		button.setAttribute("aria-label", tooltip);
 		button.onClickEvent(onClick);
 	}
 
-	/**
-	 * 将所有的状态变量应用到图片元素的 style 属性上
-	 * 这是实现所有视觉效果的核心函数
-	 */
 	private applyTransformations() {
 		if (!this.imgElement) return;
-
-		// 构建 transform 字符串
 		const transforms = [
 			`rotate(${this.currentRotation}deg)`,
-			`scale(${this.currentScale})`, // 统一使用 scale 进行缩放
+			`scale(${this.currentScale})`,
 			`scaleX(${this.scaleX})`,
 			`scaleY(${this.scaleY})`,
 		];
-
-		// 构建 filter 字符串
-		const filters = [this.isGrayscale ? "grayscale(100%)" : "none"];
-
-		// 应用样式
 		this.imgElement.style.transform = transforms.join(" ");
-		this.imgElement.style.filter = filters.join(" ");
+		this.imgElement.style.filter = this.isGrayscale
+			? "grayscale(100%)"
+			: "none";
+
+		// **新增：同步滑块的值**
+		if (this.sliderElement) {
+			// 将 currentRotation 转换为 0-359 范围内的等效正角度
+			// 例如 -45° 变为 315°，405° 变为 45°
+			const displayRotation = ((this.currentRotation % 360) + 360) % 360;
+			this.sliderElement.value = String(displayRotation);
+		}
+	}
+
+	private resetTransformations() {
+		this.currentRotation = 0;
+		this.currentScale = 1;
+		this.scaleX = 1;
+		this.scaleY = 1;
+		this.isGrayscale = false;
+		this.applyTransformations(); // 调用此方法会同时重置图片和滑块
 	}
 }
