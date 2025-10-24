@@ -36,7 +36,8 @@ class ImagePreviewModal extends Modal {
 	private imgSrc: string;
 	private container: HTMLDivElement;
 	private imgElement: HTMLImageElement;
-	private sliderElement: HTMLInputElement; // 新增：用于存储滑块DOM元素
+	private sliderElement: HTMLInputElement;
+	private rotationValueElement: HTMLSpanElement;
 
 	// --- 图片变换状态 ---
 	private currentRotation = 0;
@@ -55,14 +56,18 @@ class ImagePreviewModal extends Modal {
 	constructor(app: App, imgSrc: string) {
 		super(app);
 		this.imgSrc = imgSrc;
+		// 绑定所有事件处理器，确保 'this' 指向正确
 		this.handleTouchStart = this.handleTouchStart.bind(this);
 		this.handleTouchMove = this.handleTouchMove.bind(this);
 		this.handleTouchEnd = this.handleTouchEnd.bind(this);
+		this.handleWheel = this.handleWheel.bind(this); // **新增：绑定滚轮事件**
 	}
 
 	onOpen() {
 		const { contentEl } = this;
 		contentEl.empty();
+
+		this.modalEl.addClass("image-toolkit-modal");
 		contentEl.addClass("image-toolkit-modal-content");
 
 		this.container = contentEl.createDiv({ cls: "image-container" });
@@ -71,8 +76,9 @@ class ImagePreviewModal extends Modal {
 		});
 		this.imgElement.addClass("preview-image");
 
-		this.createControls(contentEl); // 创建所有控件
+		this.createControls(contentEl);
 		this.addEventListeners();
+		this.applyTransformations();
 	}
 
 	onClose() {
@@ -82,8 +88,12 @@ class ImagePreviewModal extends Modal {
 
 	// --- UI 创建 ---
 	private createControls(container: HTMLElement) {
-		// 创建滑块
-		const sliderContainer = container.createDiv({
+		const controlsContainer = container.createDiv({
+			cls: "controls-container",
+		});
+
+		// **修改：创建包含滑块和数字的独立行**
+		const sliderContainer = controlsContainer.createDiv({
 			cls: "rotation-slider-container",
 		});
 		this.sliderElement = sliderContainer.createEl("input", {
@@ -92,16 +102,19 @@ class ImagePreviewModal extends Modal {
 		});
 		this.sliderElement.min = "0";
 		this.sliderElement.max = "360";
-		this.sliderElement.value = "0";
-		// 添加 'input' 事件监听器，实现拖动时实时更新
 		this.sliderElement.addEventListener("input", (e) => {
 			const target = e.target as HTMLInputElement;
 			this.currentRotation = parseInt(target.value, 10);
 			this.applyTransformations();
 		});
+		this.rotationValueElement = sliderContainer.createEl("span", {
+			cls: "rotation-value",
+		});
 
 		// 创建按钮工具栏
-		const toolbar = container.createDiv({ cls: "image-toolkit-toolbar" });
+		const toolbar = controlsContainer.createDiv({
+			cls: "image-toolkit-toolbar",
+		});
 		this.createIconButton(toolbar, "zoom-in", "Zoom In", () => {
 			this.currentScale += 0.1;
 			this.applyTransformations();
@@ -110,7 +123,6 @@ class ImagePreviewModal extends Modal {
 			this.currentScale = Math.max(0.1, this.currentScale - 0.1);
 			this.applyTransformations();
 		});
-		// **修改：旋转按钮恢复为45度**
 		this.createIconButton(toolbar, "rotate-cw", "Rotate Right 45°", () => {
 			this.currentRotation += 45;
 			this.applyTransformations();
@@ -150,12 +162,27 @@ class ImagePreviewModal extends Modal {
 			passive: false,
 		});
 		this.container.addEventListener("touchend", this.handleTouchEnd);
+		this.container.addEventListener("wheel", this.handleWheel); // **新增：监听滚輪事件**
 	}
 
 	private removeEventListeners() {
 		this.container.removeEventListener("touchstart", this.handleTouchStart);
 		this.container.removeEventListener("touchmove", this.handleTouchMove);
 		this.container.removeEventListener("touchend", this.handleTouchEnd);
+		this.container.removeEventListener("wheel", this.handleWheel); // **新增：移除监听**
+	}
+
+	private handleWheel(e: WheelEvent) {
+		e.preventDefault(); // 阻止页面滚动
+		const zoomFactor = 0.1;
+		if (e.deltaY < 0) {
+			// 向上滚动 = 放大
+			this.currentScale += zoomFactor;
+		} else {
+			// 向下滚动 = 缩小
+			this.currentScale = Math.max(0.1, this.currentScale - zoomFactor);
+		}
+		this.applyTransformations();
 	}
 
 	private handleTouchStart(e: TouchEvent) {
@@ -236,13 +263,14 @@ class ImagePreviewModal extends Modal {
 			? "grayscale(100%)"
 			: "none";
 
-		// **新增：同步滑块的值**
-		if (this.sliderElement) {
-			// 将 currentRotation 转换为 0-359 范围内的等效正角度
-			// 例如 -45° 变为 315°，405° 变为 45°
-			const displayRotation = ((this.currentRotation % 360) + 360) % 360;
+		// **核心修改：同步滑块和数字显示**
+		const displayRotation = Math.round(
+			((this.currentRotation % 360) + 360) % 360
+		);
+		if (this.sliderElement)
 			this.sliderElement.value = String(displayRotation);
-		}
+		if (this.rotationValueElement)
+			this.rotationValueElement.textContent = `${displayRotation}°`;
 	}
 
 	private resetTransformations() {
@@ -251,6 +279,6 @@ class ImagePreviewModal extends Modal {
 		this.scaleX = 1;
 		this.scaleY = 1;
 		this.isGrayscale = false;
-		this.applyTransformations(); // 调用此方法会同时重置图片和滑块
+		this.applyTransformations();
 	}
 }
