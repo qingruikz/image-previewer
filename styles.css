@@ -1,32 +1,58 @@
 /* styles.css */
 
-/*
- * **核心修正：强制模态框全屏**
- * 我们直接 targeting `.modal` 元素，当它同时拥有我们添加的 `.image-toolkit-modal` 类时，
- * 就覆盖掉所有让它成为一个小窗口的默认样式。
-*/
 .modal.image-toolkit-modal {
 	background-color: transparent;
-	/* 移除白色背景，让后面的黑色遮罩透出来 */
 	box-shadow: none;
 	border-radius: 0;
 	padding: 0;
 	width: 100%;
 	height: 100%;
 	max-width: none;
-	/* 移除最大宽度限制 */
 	max-height: none;
-	/* 移除最大高度限制 */
 }
 
-/* 模态框的父容器（黑色半透明背景）不需要修改，Obsidian默认提供 */
-/* 我们的内容容器也需要撑满 */
+.modal.image-toolkit-modal .modal-close-button {
+	display: none;
+}
+
 .image-toolkit-modal-content {
 	display: flex;
 	justify-content: center;
 	align-items: center;
 	width: 100%;
 	height: 100%;
+}
+
+.image-toolkit-close-button {
+	position: absolute;
+	top: 20px;
+	left: 50%;
+	transform: translateX(-50%);
+	z-index: 101;
+	background-color: rgba(20, 20, 20, 0.8);
+	color: white;
+	border: none;
+	border-radius: 50%;
+	width: 48px;
+	height: 48px;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	cursor: pointer;
+	transition: background-color 0.2s, transform 0.1s;
+}
+
+.image-toolkit-close-button .svg-icon {
+	width: 28px;
+	height: 28px;
+}
+
+.image-toolkit-close-button:hover {
+	background-color: #e63946;
+}
+
+.image-toolkit-close-button:active {
+	transform: translateX(-50%) scale(0.92);
 }
 
 .image-container {

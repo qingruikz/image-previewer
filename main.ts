@@ -2,7 +2,7 @@
 import { App, Plugin, Modal, setIcon } from "obsidian";
 
 // ======================================================
-// 1. 插件主类 (Plugin Entry Point)
+// 1. Plugin Entry Point
 // ======================================================
 export default class ImageToolkitPlugin extends Plugin {
 	async onload() {
@@ -29,24 +29,21 @@ export default class ImageToolkitPlugin extends Plugin {
 }
 
 // ======================================================
-// 2. 自定义图片预览模态框 (The Modal)
+// 2. The Modal
 // ======================================================
 class ImagePreviewModal extends Modal {
-	// --- 元素 & 状态 ---
 	private imgSrc: string;
 	private container: HTMLDivElement;
 	private imgElement: HTMLImageElement;
 	private sliderElement: HTMLInputElement;
 	private rotationValueElement: HTMLSpanElement;
 
-	// --- 图片变换状态 ---
 	private currentRotation = 0;
 	private currentScale = 1;
 	private scaleX = 1;
 	private scaleY = 1;
 	private isGrayscale = false;
 
-	// --- 手势交互状态 ---
 	private isInteracting = false;
 	private initialDistance = 0;
 	private initialAngle = 0;
@@ -56,11 +53,11 @@ class ImagePreviewModal extends Modal {
 	constructor(app: App, imgSrc: string) {
 		super(app);
 		this.imgSrc = imgSrc;
-		// 绑定所有事件处理器，确保 'this' 指向正确
 		this.handleTouchStart = this.handleTouchStart.bind(this);
 		this.handleTouchMove = this.handleTouchMove.bind(this);
 		this.handleTouchEnd = this.handleTouchEnd.bind(this);
-		this.handleWheel = this.handleWheel.bind(this); // **新增：绑定滚轮事件**
+		this.handleWheel = this.handleWheel.bind(this);
+		this.handleBackgroundClick = this.handleBackgroundClick.bind(this);
 	}
 
 	onOpen() {
@@ -77,6 +74,7 @@ class ImagePreviewModal extends Modal {
 		this.imgElement.addClass("preview-image");
 
 		this.createControls(contentEl);
+		this.createCloseButton(contentEl);
 		this.addEventListeners();
 		this.applyTransformations();
 	}
@@ -86,13 +84,12 @@ class ImagePreviewModal extends Modal {
 		this.contentEl.empty();
 	}
 
-	// --- UI 创建 ---
+	// --- UI ---
 	private createControls(container: HTMLElement) {
 		const controlsContainer = container.createDiv({
 			cls: "controls-container",
 		});
 
-		// **修改：创建包含滑块和数字的独立行**
 		const sliderContainer = controlsContainer.createDiv({
 			cls: "rotation-slider-container",
 		});
@@ -111,7 +108,6 @@ class ImagePreviewModal extends Modal {
 			cls: "rotation-value",
 		});
 
-		// 创建按钮工具栏
 		const toolbar = controlsContainer.createDiv({
 			cls: "image-toolkit-toolbar",
 		});
@@ -153,7 +149,17 @@ class ImagePreviewModal extends Modal {
 		);
 	}
 
-	// --- 事件处理 ---
+	private createCloseButton(container: HTMLElement) {
+		const closeButton = container.createEl("button", {
+			cls: "image-toolkit-close-button",
+		});
+		setIcon(closeButton, "x");
+		closeButton.setAttribute("aria-label", "Close");
+		closeButton.onClickEvent(() => {
+			this.close();
+		});
+	}
+
 	private addEventListeners() {
 		this.container.addEventListener("touchstart", this.handleTouchStart, {
 			passive: false,
@@ -162,24 +168,30 @@ class ImagePreviewModal extends Modal {
 			passive: false,
 		});
 		this.container.addEventListener("touchend", this.handleTouchEnd);
-		this.container.addEventListener("wheel", this.handleWheel); // **新增：监听滚輪事件**
+		this.container.addEventListener("wheel", this.handleWheel);
+		this.container.addEventListener("click", this.handleBackgroundClick);
 	}
 
 	private removeEventListeners() {
 		this.container.removeEventListener("touchstart", this.handleTouchStart);
 		this.container.removeEventListener("touchmove", this.handleTouchMove);
 		this.container.removeEventListener("touchend", this.handleTouchEnd);
-		this.container.removeEventListener("wheel", this.handleWheel); // **新增：移除监听**
+		this.container.removeEventListener("wheel", this.handleWheel);
+		this.container.removeEventListener("click", this.handleBackgroundClick);
+	}
+
+	private handleBackgroundClick(e: MouseEvent) {
+		if (e.target === this.container) {
+			this.close();
+		}
 	}
 
 	private handleWheel(e: WheelEvent) {
-		e.preventDefault(); // 阻止页面滚动
+		e.preventDefault();
 		const zoomFactor = 0.1;
 		if (e.deltaY < 0) {
-			// 向上滚动 = 放大
 			this.currentScale += zoomFactor;
 		} else {
-			// 向下滚动 = 缩小
 			this.currentScale = Math.max(0.1, this.currentScale - zoomFactor);
 		}
 		this.applyTransformations();
@@ -199,12 +211,10 @@ class ImagePreviewModal extends Modal {
 	private handleTouchMove(e: TouchEvent) {
 		if (this.isInteracting && e.touches.length === 2) {
 			e.preventDefault();
-			// --- 缩放逻辑 ---
 			const currentDistance = this.getDistance(e.touches);
 			this.currentScale =
 				this.pinchStartScale * (currentDistance / this.initialDistance);
 
-			// --- 旋转逻辑 ---
 			const currentAngle = this.getAngle(e.touches);
 			const angleDiff = currentAngle - this.initialAngle;
 			this.currentRotation = this.pinchStartRotation + angleDiff;
@@ -219,7 +229,6 @@ class ImagePreviewModal extends Modal {
 		}
 	}
 
-	// --- 几何计算辅助函数 ---
 	private getDistance(touches: TouchList): number {
 		const [touch1, touch2] = [touches[0], touches[1]];
 		return Math.sqrt(
@@ -234,10 +243,9 @@ class ImagePreviewModal extends Modal {
 			touch2.pageY - touch1.pageY,
 			touch2.pageX - touch1.pageX
 		);
-		return angleRad * (180 / Math.PI); // 转换为角度
+		return angleRad * (180 / Math.PI);
 	}
 
-	// --- 变换 & 辅助方法 ---
 	private createIconButton(
 		container: HTMLElement,
 		icon: string,
@@ -245,7 +253,7 @@ class ImagePreviewModal extends Modal {
 		onClick: () => void
 	) {
 		const button = container.createEl("button");
-		setIcon(button, icon); // 使用 Obsidian 的 setIcon 函数
+		setIcon(button, icon);
 		button.setAttribute("aria-label", tooltip);
 		button.onClickEvent(onClick);
 	}
@@ -263,7 +271,6 @@ class ImagePreviewModal extends Modal {
 			? "grayscale(100%)"
 			: "none";
 
-		// **核心修改：同步滑块和数字显示**
 		const displayRotation = Math.round(
 			((this.currentRotation % 360) + 360) % 360
 		);
