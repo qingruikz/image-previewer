@@ -45,6 +45,8 @@
 .image-toolkit-close-button .svg-icon {
 	width: 28px;
 	height: 28px;
+	min-height: 28px;
+	flex-shrink: 0;
 }
 
 .image-toolkit-close-button:hover {
@@ -152,6 +154,9 @@
 .image-toolkit-toolbar button .svg-icon {
 	width: 22px;
 	height: 22px;
+	min-width: 22px;
+	min-height: 22px;
+	flex-shrink: 0;
 }
 
 .image-toolkit-toolbar button:hover {
