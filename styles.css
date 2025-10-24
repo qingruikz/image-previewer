@@ -45,6 +45,7 @@
 .image-toolkit-close-button .svg-icon {
 	width: 28px;
 	height: 28px;
+	min-width: 28px;
 	min-height: 28px;
 	flex-shrink: 0;
 }
@@ -74,6 +75,17 @@
 	transition: transform 0.25s ease-out, filter 0.25s ease-out;
 	-webkit-user-drag: none;
 	user-select: none;
+}
+
+/* **新增：拖动状态的鼠标指针样式** */
+.preview-image.is-draggable {
+	cursor: grab;
+	/* 可抓取状态 */
+}
+
+.preview-image.is-draggable.is-panning {
+	cursor: grabbing;
+	/* 正在抓取状态 */
 }
 
 .controls-container {

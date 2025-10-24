@@ -43,8 +43,16 @@ class ImagePreviewModal extends Modal {
 	private scaleX = 1;
 	private scaleY = 1;
 	private isGrayscale = false;
+	private translateX = 0;
+	private translateY = 0;
 
-	private isInteracting = false;
+	private isPanning = false;
+	private startPanX = 0;
+	private startPanY = 0;
+	private startTranslateX = 0;
+	private startTranslateY = 0;
+
+	private isPinching = false;
 	private initialDistance = 0;
 	private initialAngle = 0;
 	private pinchStartScale = 1;
@@ -53,6 +61,9 @@ class ImagePreviewModal extends Modal {
 	constructor(app: App, imgSrc: string) {
 		super(app);
 		this.imgSrc = imgSrc;
+		this.handleMouseDown = this.handleMouseDown.bind(this);
+		this.handleMouseMove = this.handleMouseMove.bind(this);
+		this.handleMouseUp = this.handleMouseUp.bind(this);
 		this.handleTouchStart = this.handleTouchStart.bind(this);
 		this.handleTouchMove = this.handleTouchMove.bind(this);
 		this.handleTouchEnd = this.handleTouchEnd.bind(this);
@@ -72,6 +83,7 @@ class ImagePreviewModal extends Modal {
 			attr: { src: this.imgSrc },
 		});
 		this.imgElement.addClass("preview-image");
+		this.imgElement.addClass("is-draggable");
 
 		this.createControls(contentEl);
 		this.createCloseButton(contentEl);
@@ -161,23 +173,107 @@ class ImagePreviewModal extends Modal {
 	}
 
 	private addEventListeners() {
+		this.container.addEventListener("mousedown", this.handleMouseDown);
 		this.container.addEventListener("touchstart", this.handleTouchStart, {
 			passive: false,
 		});
-		this.container.addEventListener("touchmove", this.handleTouchMove, {
-			passive: false,
-		});
-		this.container.addEventListener("touchend", this.handleTouchEnd);
 		this.container.addEventListener("wheel", this.handleWheel);
 		this.container.addEventListener("click", this.handleBackgroundClick);
 	}
 
 	private removeEventListeners() {
+		this.container.removeEventListener("mousedown", this.handleMouseDown);
 		this.container.removeEventListener("touchstart", this.handleTouchStart);
-		this.container.removeEventListener("touchmove", this.handleTouchMove);
-		this.container.removeEventListener("touchend", this.handleTouchEnd);
 		this.container.removeEventListener("wheel", this.handleWheel);
 		this.container.removeEventListener("click", this.handleBackgroundClick);
+		document.removeEventListener("mousemove", this.handleMouseMove);
+		document.removeEventListener("mouseup", this.handleMouseUp);
+		document.removeEventListener("touchmove", this.handleTouchMove);
+		document.removeEventListener("touchend", this.handleTouchEnd);
+	}
+
+	private handleMouseDown(e: MouseEvent) {
+		if (e.button !== 0) return;
+		e.preventDefault();
+
+		this.isPanning = true;
+		this.startPanX = e.clientX;
+		this.startPanY = e.clientY;
+		this.startTranslateX = this.translateX;
+		this.startTranslateY = this.translateY;
+
+		document.addEventListener("mousemove", this.handleMouseMove);
+		document.addEventListener("mouseup", this.handleMouseUp);
+		this.imgElement.addClass("is-panning");
+	}
+
+	private handleMouseMove(e: MouseEvent) {
+		if (!this.isPanning) return;
+		const deltaX = e.clientX - this.startPanX;
+		const deltaY = e.clientY - this.startPanY;
+		this.translateX = this.startTranslateX + deltaX;
+		this.translateY = this.startTranslateY + deltaY;
+		this.applyTransformations();
+	}
+
+	private handleMouseUp() {
+		this.isPanning = false;
+		document.removeEventListener("mousemove", this.handleMouseMove);
+		document.removeEventListener("mouseup", this.handleMouseUp);
+		this.imgElement.removeClass("is-panning");
+	}
+
+	private handleTouchStart(e: TouchEvent) {
+		document.addEventListener("touchmove", this.handleTouchMove, {
+			passive: false,
+		});
+		document.addEventListener("touchend", this.handleTouchEnd);
+
+		if (e.touches.length === 1) {
+			e.preventDefault();
+			this.isPanning = true;
+			this.startPanX = e.touches[0].clientX;
+			this.startPanY = e.touches[0].clientY;
+			this.startTranslateX = this.translateX;
+			this.startTranslateY = this.translateY;
+		} else if (e.touches.length === 2) {
+			e.preventDefault();
+			this.isPanning = false;
+			this.isPinching = true;
+			this.initialDistance = this.getDistance(e.touches);
+			this.initialAngle = this.getAngle(e.touches);
+			this.pinchStartScale = this.currentScale;
+			this.pinchStartRotation = this.currentRotation;
+		}
+	}
+
+	private handleTouchMove(e: TouchEvent) {
+		if (this.isPanning && e.touches.length === 1) {
+			e.preventDefault();
+			const deltaX = e.touches[0].clientX - this.startPanX;
+			const deltaY = e.touches[0].clientY - this.startPanY;
+			this.translateX = this.startTranslateX + deltaX;
+			this.translateY = this.startTranslateY + deltaY;
+			this.applyTransformations();
+		} else if (this.isPinching && e.touches.length === 2) {
+			e.preventDefault();
+			const currentDistance = this.getDistance(e.touches);
+			this.currentScale =
+				this.pinchStartScale * (currentDistance / this.initialDistance);
+			const currentAngle = this.getAngle(e.touches);
+			const angleDiff = currentAngle - this.initialAngle;
+			this.currentRotation = this.pinchStartRotation + angleDiff;
+			this.applyTransformations();
+		}
+	}
+
+	private handleTouchEnd(e: TouchEvent) {
+		if (e.touches.length < 2) this.isPinching = false;
+		if (e.touches.length < 1) {
+			this.isPanning = false;
+			document.removeEventListener("touchmove", this.handleTouchMove);
+			document.removeEventListener("touchend", this.handleTouchEnd);
+		}
 	}
 
 	private handleBackgroundClick(e: MouseEvent) {
@@ -195,38 +291,6 @@ class ImagePreviewModal extends Modal {
 			this.currentScale = Math.max(0.1, this.currentScale - zoomFactor);
 		}
 		this.applyTransformations();
-	}
-
-	private handleTouchStart(e: TouchEvent) {
-		if (e.touches.length === 2) {
-			e.preventDefault();
-			this.isInteracting = true;
-			this.initialDistance = this.getDistance(e.touches);
-			this.initialAngle = this.getAngle(e.touches);
-			this.pinchStartScale = this.currentScale;
-			this.pinchStartRotation = this.currentRotation;
-		}
-	}
-
-	private handleTouchMove(e: TouchEvent) {
-		if (this.isInteracting && e.touches.length === 2) {
-			e.preventDefault();
-			const currentDistance = this.getDistance(e.touches);
-			this.currentScale =
-				this.pinchStartScale * (currentDistance / this.initialDistance);
-
-			const currentAngle = this.getAngle(e.touches);
-			const angleDiff = currentAngle - this.initialAngle;
-			this.currentRotation = this.pinchStartRotation + angleDiff;
-
-			this.applyTransformations();
-		}
-	}
-
-	private handleTouchEnd(e: TouchEvent) {
-		if (e.touches.length < 2) {
-			this.isInteracting = false;
-		}
 	}
 
 	private getDistance(touches: TouchList): number {
@@ -261,6 +325,7 @@ class ImagePreviewModal extends Modal {
 	private applyTransformations() {
 		if (!this.imgElement) return;
 		const transforms = [
+			`translate(${this.translateX}px, ${this.translateY}px)`, // **新增：应用平移**
 			`rotate(${this.currentRotation}deg)`,
 			`scale(${this.currentScale})`,
 			`scaleX(${this.scaleX})`,
@@ -286,6 +351,8 @@ class ImagePreviewModal extends Modal {
 		this.scaleX = 1;
 		this.scaleY = 1;
 		this.isGrayscale = false;
+		this.translateX = 0;
+		this.translateY = 0;
 		this.applyTransformations();
 	}
 }
