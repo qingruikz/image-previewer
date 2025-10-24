@@ -1,134 +1,231 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
+// main.ts
+import { App, Plugin, Modal, setIcon } from "obsidian";
 
-// Remember to rename these classes and interfaces!
-
-interface MyPluginSettings {
-	mySetting: string;
-}
-
-const DEFAULT_SETTINGS: MyPluginSettings = {
-	mySetting: 'default'
-}
-
-export default class MyPlugin extends Plugin {
-	settings: MyPluginSettings;
-
+// ======================================================
+// 1. 插件主类 (Plugin Entry Point)
+// ======================================================
+export default class ImageToolkitPlugin extends Plugin {
 	async onload() {
-		await this.loadSettings();
-
-		// This creates an icon in the left ribbon.
-		const ribbonIconEl = this.addRibbonIcon('dice', 'Sample Plugin', (_evt: MouseEvent) => {
-			// Called when the user clicks the icon.
-			new Notice('This is a notice!');
-		});
-		// Perform additional things with the ribbon
-		ribbonIconEl.addClass('my-plugin-ribbon-class');
-
-		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-		const statusBarItemEl = this.addStatusBarItem();
-		statusBarItemEl.setText('Status Bar Text');
-
-		// This adds a simple command that can be triggered anywhere
-		this.addCommand({
-			id: 'open-sample-modal-simple',
-			name: 'Open sample modal (simple)',
-			callback: () => {
-				new SampleModal(this.app).open();
-			}
-		});
-		// This adds an editor command that can perform some operation on the current editor instance
-		this.addCommand({
-			id: 'sample-editor-command',
-			name: 'Sample editor command',
-			editorCallback: (editor: Editor, _view: MarkdownView) => {
-				console.log(editor.getSelection());
-				editor.replaceSelection('Sample Editor Command');
-			}
-		});
-		// This adds a complex command that can check whether the current state of the app allows execution of the command
-		this.addCommand({
-			id: 'open-sample-modal-complex',
-			name: 'Open sample modal (complex)',
-			checkCallback: (checking: boolean) => {
-				// Conditions to check
-				const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (markdownView) {
-					// If checking is true, we're simply "checking" if the command can be run.
-					// If checking is false, then we want to actually perform the operation.
-					if (!checking) {
-						new SampleModal(this.app).open();
+		this.registerDomEvent(
+			document,
+			"click",
+			(evt: MouseEvent) => {
+				const target = evt.target as HTMLElement;
+				if (
+					target.tagName === "IMG" &&
+					target.closest(".markdown-reading-view")
+				) {
+					// 确保只在阅读视图中生效
+					evt.preventDefault();
+					evt.stopPropagation();
+					const src = target.getAttribute("src");
+					if (src) {
+						new ImagePreviewModal(this.app, src).open();
 					}
-
-					// This command will only show up in Command Palette when the check function returns true
-					return true;
 				}
-			}
-		});
-
-		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
-
-		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
-		// Using this function will automatically remove the event listener when this plugin is disabled.
-		this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
-			console.log('click', evt);
-		});
-
-		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
-	}
-
-	onunload() {
-
-	}
-
-	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-	}
-
-	async saveSettings() {
-		await this.saveData(this.settings);
+			},
+			{ capture: true }
+		);
 	}
 }
 
-class SampleModal extends Modal {
-	constructor(app: App) {
+// ======================================================
+// 2. 自定义图片预览模态框 (The Modal)
+// ======================================================
+class ImagePreviewModal extends Modal {
+	// --- 元素 & 状态 ---
+	private imgSrc: string;
+	private container: HTMLDivElement;
+	private imgElement: HTMLImageElement;
+
+	// --- 图片变换状态 ---
+	private currentRotation = 0;
+	private currentScale = 1;
+	private scaleX = 1;
+	private scaleY = 1;
+	private isGrayscale = false;
+
+	// --- 手势交互状态 ---
+	private isInteracting = false;
+	private initialDistance = 0;
+	private initialAngle = 0;
+	private pinchStartScale = 1;
+	private pinchStartRotation = 0;
+
+	constructor(app: App, imgSrc: string) {
 		super(app);
+		this.imgSrc = imgSrc;
+
+		// 绑定 this，确保在事件监听器中 this 指向 Modal 实例
+		this.handleTouchStart = this.handleTouchStart.bind(this);
+		this.handleTouchMove = this.handleTouchMove.bind(this);
+		this.handleTouchEnd = this.handleTouchEnd.bind(this);
 	}
 
 	onOpen() {
-		const {contentEl} = this;
-		contentEl.setText('Woah!');
+		const { contentEl } = this;
+		contentEl.empty();
+		contentEl.addClass("image-toolkit-modal-content");
+
+		this.container = contentEl.createDiv({ cls: "image-container" });
+		this.imgElement = this.container.createEl("img", {
+			attr: { src: this.imgSrc },
+		});
+		this.imgElement.addClass("preview-image");
+
+		this.createToolbar(contentEl);
+		this.addEventListeners();
 	}
 
 	onClose() {
-		const {contentEl} = this;
-		contentEl.empty();
-	}
-}
-
-class SampleSettingTab extends PluginSettingTab {
-	plugin: MyPlugin;
-
-	constructor(app: App, plugin: MyPlugin) {
-		super(app, plugin);
-		this.plugin = plugin;
+		this.removeEventListeners();
+		this.contentEl.empty();
 	}
 
-	display(): void {
-		const {containerEl} = this;
+	// --- UI 创建 ---
+	private createToolbar(container: HTMLElement) {
+		const toolbar = container.createDiv({ cls: "image-toolkit-toolbar" });
 
-		containerEl.empty();
+		this.createIconButton(toolbar, "zoom-in", "Zoom In", () => {
+			this.currentScale += 0.1;
+			this.applyTransformations();
+		});
+		this.createIconButton(toolbar, "zoom-out", "Zoom Out", () => {
+			this.currentScale = Math.max(0.1, this.currentScale - 0.1);
+			this.applyTransformations();
+		});
+		this.createIconButton(toolbar, "rotate-cw", "Rotate Right 15°", () => {
+			this.currentRotation += 15;
+			this.applyTransformations();
+		});
+		this.createIconButton(toolbar, "rotate-ccw", "Rotate Left 15°", () => {
+			this.currentRotation -= 15;
+			this.applyTransformations();
+		});
+		this.createIconButton(
+			toolbar,
+			"flip-horizontal",
+			"Flip Horizontal",
+			() => {
+				this.scaleX *= -1;
+				this.applyTransformations();
+			}
+		);
+		this.createIconButton(toolbar, "flip-vertical", "Flip Vertical", () => {
+			this.scaleY *= -1;
+			this.applyTransformations();
+		});
+		this.createIconButton(toolbar, "contrast", "Toggle Grayscale", () => {
+			this.isGrayscale = !this.isGrayscale;
+			this.applyTransformations();
+		});
+		this.createIconButton(toolbar, "refresh-cw", "Reset", () =>
+			this.resetTransformations()
+		);
+	}
 
-		new Setting(containerEl)
-			.setName('Setting #1')
-			.setDesc('It\'s a secret')
-			.addText(text => text
-				.setPlaceholder('Enter your secret')
-				.setValue(this.plugin.settings.mySetting)
-				.onChange(async (value) => {
-					this.plugin.settings.mySetting = value;
-					await this.plugin.saveSettings();
-				}));
+	// --- 事件处理 ---
+	private addEventListeners() {
+		this.container.addEventListener("touchstart", this.handleTouchStart, {
+			passive: false,
+		});
+		this.container.addEventListener("touchmove", this.handleTouchMove, {
+			passive: false,
+		});
+		this.container.addEventListener("touchend", this.handleTouchEnd);
+	}
+
+	private removeEventListeners() {
+		this.container.removeEventListener("touchstart", this.handleTouchStart);
+		this.container.removeEventListener("touchmove", this.handleTouchMove);
+		this.container.removeEventListener("touchend", this.handleTouchEnd);
+	}
+
+	private handleTouchStart(e: TouchEvent) {
+		if (e.touches.length === 2) {
+			e.preventDefault();
+			this.isInteracting = true;
+			this.initialDistance = this.getDistance(e.touches);
+			this.initialAngle = this.getAngle(e.touches);
+			this.pinchStartScale = this.currentScale;
+			this.pinchStartRotation = this.currentRotation;
+		}
+	}
+
+	private handleTouchMove(e: TouchEvent) {
+		if (this.isInteracting && e.touches.length === 2) {
+			e.preventDefault();
+			// --- 缩放逻辑 ---
+			const currentDistance = this.getDistance(e.touches);
+			this.currentScale =
+				this.pinchStartScale * (currentDistance / this.initialDistance);
+
+			// --- 旋转逻辑 ---
+			const currentAngle = this.getAngle(e.touches);
+			const angleDiff = currentAngle - this.initialAngle;
+			this.currentRotation = this.pinchStartRotation + angleDiff;
+
+			this.applyTransformations();
+		}
+	}
+
+	private handleTouchEnd(e: TouchEvent) {
+		if (e.touches.length < 2) {
+			this.isInteracting = false;
+		}
+	}
+
+	// --- 几何计算辅助函数 ---
+	private getDistance(touches: TouchList): number {
+		const [touch1, touch2] = [touches[0], touches[1]];
+		return Math.sqrt(
+			Math.pow(touch1.pageX - touch2.pageX, 2) +
+				Math.pow(touch1.pageY - touch2.pageY, 2)
+		);
+	}
+
+	private getAngle(touches: TouchList): number {
+		const [touch1, touch2] = [touches[0], touches[1]];
+		const angleRad = Math.atan2(
+			touch2.pageY - touch1.pageY,
+			touch2.pageX - touch1.pageX
+		);
+		return angleRad * (180 / Math.PI); // 转换为角度
+	}
+
+	// --- 变换 & 辅助方法 ---
+	private createIconButton(
+		container: HTMLElement,
+		icon: string,
+		tooltip: string,
+		onClick: () => void
+	) {
+		const button = container.createEl("button");
+		setIcon(button, icon); // 使用 Obsidian 的 setIcon 函数
+		button.setAttribute("aria-label", tooltip);
+		button.onClickEvent(onClick);
+	}
+
+	private applyTransformations() {
+		if (!this.imgElement) return;
+		const transforms = [
+			`rotate(${this.currentRotation}deg)`,
+			`scale(${this.currentScale})`,
+			`scaleX(${this.scaleX})`,
+			`scaleY(${this.scaleY})`,
+		];
+		this.imgElement.style.transform = transforms.join(" ");
+		this.imgElement.style.filter = this.isGrayscale
+			? "grayscale(100%)"
+			: "none";
+	}
+
+	private resetTransformations() {
+		this.currentRotation = 0;
+		this.currentScale = 1;
+		this.scaleX = 1;
+		this.scaleY = 1;
+		this.isGrayscale = false;
+		this.applyTransformations();
 	}
 }
