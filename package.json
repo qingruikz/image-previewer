@@ -1,7 +1,7 @@
 {
 	"name": "image-previewer",
 	"version": "1.0.1",
-	"description": "A powerful image viewer for Obsidian. Features include zooming, panning, rotating, flipping, and grayscale toggle for images within your notes.",
+	"description": "A powerful image viewer. Features include zooming, panning, rotating, flipping, and grayscale toggle.",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",

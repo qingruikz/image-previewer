@@ -3,7 +3,7 @@
 	"name": "Image Previewer",
 	"version": "1.0.1",
 	"minAppVersion": "0.15.0",
-	"description": "A powerful image viewer for Obsidian. Features include zooming, panning, rotating, flipping, and grayscale toggle for images within your notes.",
+	"description": "A powerful image viewer. Features include zooming, panning, rotating, flipping, and grayscale toggle.",
 	"author": "qingrui",
 	"authorUrl": "https://github.com/qingruikz",
 	"fundingUrl": {
