@@ -1,11 +1,13 @@
 {
 	"id": "image-previewer",
 	"name": "Image Previewer",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"minAppVersion": "0.15.0",
-	"description": "Demonstrates some of the capabilities of the Obsidian API.",
-	"author": "Obsidian",
-	"authorUrl": "https://obsidian.md",
-	"fundingUrl": "https://obsidian.md/pricing",
+	"description": "A powerful image viewer for Obsidian. Features include zooming, panning, rotating, flipping, and grayscale toggle for images within your notes.",
+	"author": "qingrui",
+	"authorUrl": "https://github.com/qingruikz",
+	"fundingUrl": {
+		"Buy Me a Coffee": "https://buymeacoffee.com/qingruikz"
+	},
 	"isDesktopOnly": false
 }

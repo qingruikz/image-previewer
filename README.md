@@ -1,94 +1,95 @@
-# Obsidian Sample Plugin
+# Image Previewer
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+A powerful image viewer for Obsidian. Features include zooming, panning, rotating, flipping, and grayscale toggle for images within your notes.
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+[English](#english) | [中文](#中文) | [日本語](#日本語)
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open Sample Modal" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and output 'click' to the console.
-- Registers a global interval which logs 'setInterval' to the console.
+---
 
-## First time developing plugins?
+## English
 
-Quick starting guide for new plugin devs:
+**Image Previewer** allows you to view images in your Obsidian notes with advanced controls.
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `main.ts` to `main.js`.
-- Make changes to `main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+### Features
 
-## Releasing new releases
+-   **Zoom**: Use the mouse wheel, pinch gesture on touchscreens, or the toolbar buttons (`+` / `-`) to zoom in and out.
+-   **Pan**: Click and drag (or touch and drag) to move the image around.
+-   **Rotate**:
+    -   Use the slider for fine-grained rotation.
+    -   Use the toolbar buttons to rotate left/right by 45 degrees.
+    -   Two-finger rotate gesture is supported on touch devices.
+-   **Flip**: Flip the image horizontally or vertically.
+-   **Grayscale**: Toggle grayscale mode to view the image in black and white.
+-   **Reset**: Quickly reset all transformations to the original state.
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
+### How to Use
 
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
+1. **Click** on any image within your Obsidian notes (in Preview or Live Preview mode).
+2. The image will open in a modal overlay.
+3. Use the **toolbar** at the bottom to adjust the image.
+4. Click the **Close (X)** button or click anywhere outside the image to close the preview.
 
-## Adding your plugin to the community plugin list
+---
 
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
+## 中文
 
-## How to use
+**Image Previewer** 是一个为 Obsidian 设计的强大图片查看插件，提供多种高级图片浏览功能。
 
-- Clone this repo.
-- Make sure your NodeJS is at least v16 (`node --version`).
-- `npm i` or `yarn` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
+### 功能特点
 
-## Manually installing the plugin
+-   **缩放**：使用鼠标滚轮、触摸屏捏合手势，或点击工具栏的放大/缩小按钮。
+-   **平移**：按住并拖动图片（或在触摸屏上滑动）即可移动查看区域。
+-   **旋转**：
+    -   使用滑块进行任意角度旋转。
+    -   使用工具栏按钮向左/向右旋转 45 度。
+    -   支持触摸屏双指旋转手势。
+-   **翻转**：支持水平翻转和垂直翻转。
+-   **灰度模式**：一键切换黑白灰度显示。
+-   **重置**：快速将图片恢复到初始状态。
 
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
+### 使用说明
 
-## Improve code quality with eslint (optional)
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code. 
-- To use eslint with this project, make sure to install eslint from terminal:
-  - `npm install -g eslint`
-- To use eslint to analyze this project use this command:
-  - `eslint main.ts`
-  - eslint will then create a report with suggestions for code improvement by file and line number.
-- If your source code is in a folder, such as `src`, you can use eslint with this command to analyze all files in that folder:
-  - `eslint ./src/`
+1. 在 Obsidian 笔记中（预览模式或实时预览模式）**点击**任意图片。
+2. 图片将在全屏模态窗口中打开。
+3. 使用底部的**工具栏**对图片进行操作。
+4. 点击**关闭 (X)** 按钮或点击图片外部区域即可关闭预览。
 
-## Funding URL
+---
 
-You can include funding URLs where people who use your plugin can financially support it.
+## 日本語
 
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
+**Image Previewer** は、Obsidian のノート内の画像を閲覧するための強力なプラグインです。
 
-```json
-{
-    "fundingUrl": "https://buymeacoffee.com"
-}
-```
+### 機能
 
-If you have multiple URLs, you can also do:
+-   **ズーム**: マウスホイール、タッチスクリーンのピンチ操作、またはツールバーのボタンで拡大・縮小ができます。
+-   **パン（移動）**: 画像をドラッグ（またはタッチしてスワイプ）することで、表示位置を動かせます。
+-   **回転**:
+    -   スライダーを使用して細かく回転できます。
+    -   ツールバーのボタンで左右に 45 度ずつ回転できます。
+    -   タッチデバイスでは、2 本指での回転ジェスチャーに対応しています。
+-   **反転**: 画像を水平または垂直に反転できます。
+-   **グレースケール**: 画像を白黒モードに切り替えることができます。
+-   **リセット**: すべての変更を初期状態に素早く戻せます。
 
-```json
-{
-    "fundingUrl": {
-        "Buy Me a Coffee": "https://buymeacoffee.com",
-        "GitHub Sponsor": "https://github.com/sponsors",
-        "Patreon": "https://www.patreon.com/"
-    }
-}
-```
+### 使用方法
 
-## API Documentation
+1. Obsidian のノート内（プレビューまたはライブプレビューモード）にある画像を**クリック**します。
+2. 画像がモーダルウィンドウで開きます。
+3. 画面下部の**ツールバー**を使用して画像を操作します。
+4. **閉じる (X)** ボタンをクリックするか、画像の背景をクリックするとプレビューを閉じます。
 
-See https://github.com/obsidianmd/obsidian-api
+---
+
+## Installation / 安装 / インストール
+
+1. Open **Settings** > **Community Plugins** in Obsidian.
+2. Turn off **Safe Mode**.
+3. Click **Browse** and search for "Image Previewer".
+4. Click **Install** and then **Enable**.
+
+## Support / 支持 / サポート
+
+If you find this plugin useful, please consider supporting my work:
+
+<a href="https://buymeacoffee.com/qingruikz" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>

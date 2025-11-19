@@ -1,15 +1,22 @@
 {
-	"name": "obsidian-sample-plugin",
-	"version": "1.0.0",
-	"description": "This is a sample plugin for Obsidian (https://obsidian.md)",
+	"name": "image-previewer",
+	"version": "1.0.1",
+	"description": "A powerful image viewer for Obsidian. Features include zooming, panning, rotating, flipping, and grayscale toggle for images within your notes.",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
 		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
 		"version": "node version-bump.mjs && git add manifest.json versions.json"
 	},
-	"keywords": [],
-	"author": "",
+	"keywords": [
+		"obsidian",
+		"obsidian-plugin",
+		"image",
+		"preview",
+		"zoom",
+		"rotate"
+	],
+	"author": "qingrui",
 	"license": "MIT",
 	"devDependencies": {
 		"@types/node": "^16.11.6",
