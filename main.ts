@@ -5,7 +5,7 @@ import { App, Plugin, Modal, setIcon } from "obsidian";
 // 1. Plugin Entry Point
 // ======================================================
 export default class ImageToolkitPlugin extends Plugin {
-	async onload() {
+	onload = (): void => {
 		this.registerDomEvent(
 			document,
 			"click",
@@ -25,7 +25,7 @@ export default class ImageToolkitPlugin extends Plugin {
 			},
 			{ capture: true }
 		);
-	}
+	};
 }
 
 // ======================================================
@@ -61,17 +61,9 @@ class ImagePreviewModal extends Modal {
 	constructor(app: App, imgSrc: string) {
 		super(app);
 		this.imgSrc = imgSrc;
-		this.handleMouseDown = this.handleMouseDown.bind(this);
-		this.handleMouseMove = this.handleMouseMove.bind(this);
-		this.handleMouseUp = this.handleMouseUp.bind(this);
-		this.handleTouchStart = this.handleTouchStart.bind(this);
-		this.handleTouchMove = this.handleTouchMove.bind(this);
-		this.handleTouchEnd = this.handleTouchEnd.bind(this);
-		this.handleWheel = this.handleWheel.bind(this);
-		this.handleBackgroundClick = this.handleBackgroundClick.bind(this);
 	}
 
-	onOpen() {
+	onOpen = (): void => {
 		const { contentEl } = this;
 		contentEl.empty();
 
@@ -89,15 +81,15 @@ class ImagePreviewModal extends Modal {
 		this.createCloseButton(contentEl);
 		this.addEventListeners();
 		this.applyTransformations();
-	}
+	};
 
-	onClose() {
+	onClose = (): void => {
 		this.removeEventListeners();
 		this.contentEl.empty();
-	}
+	};
 
 	// --- UI ---
-	private createControls(container: HTMLElement) {
+	private createControls = (container: HTMLElement): void => {
 		const controlsContainer = container.createDiv({
 			cls: "controls-container",
 		});
@@ -159,9 +151,9 @@ class ImagePreviewModal extends Modal {
 		this.createIconButton(toolbar, "refresh-cw", "Reset", () =>
 			this.resetTransformations()
 		);
-	}
+	};
 
-	private createCloseButton(container: HTMLElement) {
+	private createCloseButton = (container: HTMLElement): void => {
 		const closeButton = container.createEl("button", {
 			cls: "image-toolkit-close-button",
 		});
@@ -170,18 +162,18 @@ class ImagePreviewModal extends Modal {
 		closeButton.onClickEvent(() => {
 			this.close();
 		});
-	}
+	};
 
-	private addEventListeners() {
+	private addEventListeners = (): void => {
 		this.container.addEventListener("mousedown", this.handleMouseDown);
 		this.container.addEventListener("touchstart", this.handleTouchStart, {
 			passive: false,
 		});
 		this.container.addEventListener("wheel", this.handleWheel);
 		this.container.addEventListener("click", this.handleBackgroundClick);
-	}
+	};
 
-	private removeEventListeners() {
+	private removeEventListeners = (): void => {
 		this.container.removeEventListener("mousedown", this.handleMouseDown);
 		this.container.removeEventListener("touchstart", this.handleTouchStart);
 		this.container.removeEventListener("wheel", this.handleWheel);
@@ -190,9 +182,9 @@ class ImagePreviewModal extends Modal {
 		document.removeEventListener("mouseup", this.handleMouseUp);
 		document.removeEventListener("touchmove", this.handleTouchMove);
 		document.removeEventListener("touchend", this.handleTouchEnd);
-	}
+	};
 
-	private handleMouseDown(e: MouseEvent) {
+	private handleMouseDown = (e: MouseEvent): void => {
 		if (e.button !== 0) return;
 		e.preventDefault();
 
@@ -205,25 +197,25 @@ class ImagePreviewModal extends Modal {
 		document.addEventListener("mousemove", this.handleMouseMove);
 		document.addEventListener("mouseup", this.handleMouseUp);
 		this.imgElement.addClass("is-panning");
-	}
+	};
 
-	private handleMouseMove(e: MouseEvent) {
+	private handleMouseMove = (e: MouseEvent): void => {
 		if (!this.isPanning) return;
 		const deltaX = e.clientX - this.startPanX;
 		const deltaY = e.clientY - this.startPanY;
 		this.translateX = this.startTranslateX + deltaX;
 		this.translateY = this.startTranslateY + deltaY;
 		this.applyTransformations();
-	}
+	};
 
-	private handleMouseUp() {
+	private handleMouseUp = (): void => {
 		this.isPanning = false;
 		document.removeEventListener("mousemove", this.handleMouseMove);
 		document.removeEventListener("mouseup", this.handleMouseUp);
 		this.imgElement.removeClass("is-panning");
-	}
+	};
 
-	private handleTouchStart(e: TouchEvent) {
+	private handleTouchStart = (e: TouchEvent): void => {
 		document.addEventListener("touchmove", this.handleTouchMove, {
 			passive: false,
 		});
@@ -245,9 +237,9 @@ class ImagePreviewModal extends Modal {
 			this.pinchStartScale = this.currentScale;
 			this.pinchStartRotation = this.currentRotation;
 		}
-	}
+	};
 
-	private handleTouchMove(e: TouchEvent) {
+	private handleTouchMove = (e: TouchEvent): void => {
 		if (this.isPanning && e.touches.length === 1) {
 			e.preventDefault();
 			const deltaX = e.touches[0].clientX - this.startPanX;
@@ -265,24 +257,24 @@ class ImagePreviewModal extends Modal {
 			this.currentRotation = this.pinchStartRotation + angleDiff;
 			this.applyTransformations();
 		}
-	}
+	};
 
-	private handleTouchEnd(e: TouchEvent) {
+	private handleTouchEnd = (e: TouchEvent): void => {
 		if (e.touches.length < 2) this.isPinching = false;
 		if (e.touches.length < 1) {
 			this.isPanning = false;
 			document.removeEventListener("touchmove", this.handleTouchMove);
 			document.removeEventListener("touchend", this.handleTouchEnd);
 		}
-	}
+	};
 
-	private handleBackgroundClick(e: MouseEvent) {
+	private handleBackgroundClick = (e: MouseEvent): void => {
 		if (e.target === this.container) {
 			this.close();
 		}
-	}
+	};
 
-	private handleWheel(e: WheelEvent) {
+	private handleWheel = (e: WheelEvent): void => {
 		e.preventDefault();
 		const zoomFactor = 0.1;
 		if (e.deltaY < 0) {
@@ -291,38 +283,38 @@ class ImagePreviewModal extends Modal {
 			this.currentScale = Math.max(0.1, this.currentScale - zoomFactor);
 		}
 		this.applyTransformations();
-	}
+	};
 
-	private getDistance(touches: TouchList): number {
+	private getDistance = (touches: TouchList): number => {
 		const [touch1, touch2] = [touches[0], touches[1]];
 		return Math.sqrt(
 			Math.pow(touch1.pageX - touch2.pageX, 2) +
 				Math.pow(touch1.pageY - touch2.pageY, 2)
 		);
-	}
+	};
 
-	private getAngle(touches: TouchList): number {
+	private getAngle = (touches: TouchList): number => {
 		const [touch1, touch2] = [touches[0], touches[1]];
 		const angleRad = Math.atan2(
 			touch2.pageY - touch1.pageY,
 			touch2.pageX - touch1.pageX
 		);
 		return angleRad * (180 / Math.PI);
-	}
+	};
 
-	private createIconButton(
+	private createIconButton = (
 		container: HTMLElement,
 		icon: string,
 		tooltip: string,
 		onClick: () => void
-	) {
+	): void => {
 		const button = container.createEl("button");
 		setIcon(button, icon);
 		button.setAttribute("aria-label", tooltip);
 		button.onClickEvent(onClick);
-	}
+	};
 
-	private applyTransformations() {
+	private applyTransformations = (): void => {
 		if (!this.imgElement) return;
 		const transforms = [
 			`translate(${this.translateX}px, ${this.translateY}px)`, // **新增：应用平移**
@@ -343,9 +335,9 @@ class ImagePreviewModal extends Modal {
 			this.sliderElement.value = String(displayRotation);
 		if (this.rotationValueElement)
 			this.rotationValueElement.textContent = `${displayRotation}°`;
-	}
+	};
 
-	private resetTransformations() {
+	private resetTransformations = (): void => {
 		this.currentRotation = 0;
 		this.currentScale = 1;
 		this.scaleX = 1;
@@ -354,5 +346,5 @@ class ImagePreviewModal extends Modal {
 		this.translateX = 0;
 		this.translateY = 0;
 		this.applyTransformations();
-	}
+	};
 }
